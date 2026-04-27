@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Component {
+  id           Int         @id @default(autoincrement())
+  partNumber   String      @map("part_number") @db.VarChar(100)
+  manufacturer String      @default("") @db.VarChar(100)
+  quantity     Int         @default(0)
+  imagePath    String?     @map("image_path")
+  description  String?     @db.Text
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+  orderItems   OrderItem[]
+
+  @@index([partNumber])
+  @@index([manufacturer])
+  @@map("components")
+}
+
+model AdminUser {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique @db.VarChar(50)
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("admin_users")
+}
+
+model Order {
+  id            Int         @id @default(autoincrement())
+  customerName  String      @map("customer_name")
+  customerEmail String      @map("customer_email")
+  customerPhone String?     @map("customer_phone")
+  companyName   String?     @map("company_name")
+  comment       String?     @db.Text
+  status        OrderStatus @default(NEW)
+  createdAt     DateTime    @default(now()) @map("created_at")
+  items         OrderItem[]
+
+  @@map("orders")
+}
+
+enum OrderStatus {
+  NEW
+  PROCESSED
+  COMPLETED
+}
+
+model OrderItem {
+  id                Int        @id @default(autoincrement())
+  orderId           Int        @map("order_id")
+  componentId       Int?       @map("component_id")
+  partNumber        String     @map("part_number")
+  manufacturer      String     @default("")
+  quantityRequested Int        @map("quantity_requested")
+
+  order     Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  component Component? @relation(fields: [componentId], references: [id], onDelete: SetNull)
+
+  @@map("order_items")
+}
+
+model EmailVerification {
+  id        Int      @id @default(autoincrement())
+  email     String
+  token     String   @db.VarChar(6)
+  expiresAt DateTime @map("expires_at")
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email, token])
+  @@map("email_verifications")
+}
+
+model ContactMessage {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String
+  message   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("contact_messages")
+}
