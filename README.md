@@ -33,8 +33,7 @@ Vue 3 + Fastify + PostgreSQL + Redis, развёрнуто через Docker Com
 
 ```bash
 # Клонировать репозиторий
-git clone https://github.com/your-org/diplom-new.git
-cd diplom-new
+git@github.com:shpak2207b/diplom.gitcd diplom-new
 
 # Создать файл переменных окружения
 cp .env.example .env
@@ -75,7 +74,7 @@ sudo usermod -aG docker $USER
 ### 3.2. Загрузить код
 
 ```bash
-git clone https://github.com/your-org/diplom-new.git
+git@github.com:shpak2207b/diplom.git
 cd diplom-new
 ```
 
