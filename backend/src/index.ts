@@ -7,11 +7,11 @@ import multipart from '@fastify/multipart'
 import rateLimit from '@fastify/rate-limit'
 
 import prismaPlugin from './plugins/prisma.js'
+import redisPlugin from './plugins/redis.js'
 
 // Public routes
 import catalogRoutes from './routes/public/catalog.js'
 import contactRoutes from './routes/public/contact.js'
-import otpRoutes from './routes/public/otp.js'
 import ordersRoutes from './routes/public/orders.js'
 import efindRoutes from './routes/public/efind.js'
 
@@ -21,6 +21,7 @@ import dashboardRoutes from './routes/admin/dashboard.js'
 import adminOrdersRoutes from './routes/admin/orders.js'
 import adminComponentsRoutes from './routes/admin/components.js'
 import adminImportRoutes from './routes/admin/import.js'
+import adminMessagesRoutes from './routes/admin/messages.js'
 
 const server = Fastify({ logger: config.NODE_ENV === 'development' })
 
@@ -31,7 +32,9 @@ await server.register(cors, {
 
 await server.register(jwt, { secret: config.JWT_SECRET })
 
-await server.register(multipart, { limits: { fileSize: 50 * 1024 * 1024 } }) // 50MB
+await server.register(multipart, {
+  limits: { fileSize: 50 * 1024 * 1024 },
+})
 
 await server.register(rateLimit, {
   max: 100,
@@ -40,26 +43,9 @@ await server.register(rateLimit, {
 })
 
 await server.register(prismaPlugin)
+await server.register(redisPlugin)
 
-// Apply stricter rate limit to OTP endpoint
-await server.register(
-  async (instance) => {
-    await instance.register(rateLimit, {
-      max: 3,
-      timeWindow: '1 minute',
-      keyGenerator: (req) => {
-        const body = req.body as { email?: string } | undefined
-        return `otp:${req.ip}:${body?.email ?? ''}`
-      },
-      errorResponseBuilder: () => ({
-        error: 'Слишком много запросов. Подождите 1 минуту.',
-      }),
-    })
-    await instance.register(otpRoutes, { prefix: '/api' })
-  },
-)
-
-// Register all other routes
+// Register all routes
 await server.register(catalogRoutes, { prefix: '/api' })
 await server.register(contactRoutes, { prefix: '/api' })
 await server.register(ordersRoutes, { prefix: '/api' })
@@ -70,6 +56,7 @@ await server.register(dashboardRoutes, { prefix: '/api' })
 await server.register(adminOrdersRoutes, { prefix: '/api' })
 await server.register(adminComponentsRoutes, { prefix: '/api' })
 await server.register(adminImportRoutes, { prefix: '/api' })
+await server.register(adminMessagesRoutes, { prefix: '/api' })
 
 server.get('/api/health', async () => ({ ok: true }))
 

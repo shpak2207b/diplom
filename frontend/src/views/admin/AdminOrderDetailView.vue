@@ -14,6 +14,7 @@ const statusOptions = [
   { value: 'NEW', label: 'Новая' },
   { value: 'PROCESSED', label: 'В работе' },
   { value: 'COMPLETED', label: 'Завершена' },
+  { value: 'ARCHIVED', label: 'Архив' },
 ]
 
 onMounted(async () => {
@@ -29,11 +30,21 @@ async function updateStatus(status: string) {
   order.value = { ...order.value, status: res.data.status }
   statusLoading.value = false
 }
+
+async function deleteOrder() {
+  if (!order.value) return
+  if (!confirm('Удалить заявку безвозвратно?')) return
+  await api.delete(`/api/admin/orders/${order.value.id}`)
+  router.push('/admin/orders')
+}
 </script>
 
 <template>
   <div>
-    <button class="btn-back" @click="router.back()">← Назад</button>
+    <div class="top-bar">
+      <button class="btn-back" @click="router.back()">← Назад</button>
+      <button v-if="order" class="btn-delete" @click="deleteOrder">Удалить заявку</button>
+    </div>
 
     <div v-if="loading">Загрузка...</div>
     <template v-else-if="order">
@@ -55,7 +66,7 @@ async function updateStatus(status: string) {
           <select
             :value="order.status"
             :disabled="statusLoading"
-            class="form-input"
+            class="status-select"
             @change="updateStatus(($event.target as HTMLSelectElement).value)"
           >
             <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
@@ -91,15 +102,35 @@ async function updateStatus(status: string) {
 <style scoped>
 h1 { margin-top: 0; }
 
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .btn-back {
-  background: none;
+  background: #fff;
   border: 1px solid #ccc;
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
-  color: var(--text-color);
-  margin-bottom: 20px;
+  color: #1b2b3a;
+  transition: background 0.15s;
 }
+.btn-back:hover { background: #f0f2f5; }
+
+.btn-delete {
+  background: none;
+  border: 1px solid #cc0000;
+  color: #cc0000;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+.btn-delete:hover { background: #fff0f0; }
 
 .info-grid {
   display: grid;
@@ -109,21 +140,32 @@ h1 { margin-top: 0; }
 }
 
 .info-card {
-  background: var(--card-bg);
+  background: #fff;
   border-radius: 12px;
   padding: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.05);
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
-
 .info-card h3 { margin-top: 0; }
-.info-card p { margin: 6px 0; }
+.info-card p { margin: 6px 0; font-size: 14px; }
+
+.status-select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+  color: #1b2b3a;
+  cursor: pointer;
+}
 
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--card-bg);
+  background: #fff;
   border-radius: 10px;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 
 .admin-table th,
@@ -131,6 +173,7 @@ h1 { margin-top: 0; }
   padding: 10px 14px;
   border-bottom: 1px solid #eee;
   text-align: left;
+  font-size: 13px;
 }
 
 .admin-table th {

@@ -14,32 +14,35 @@ const efindRoutes: FastifyPluginAsync = async (server) => {
       where: {
         OR: [
           { partNumber: { contains: query, mode: 'insensitive' } },
-          { manufacturer: { contains: query, mode: 'insensitive' } },
+          { manufacturer: { is: { name: { contains: query, mode: 'insensitive' } } } },
         ],
       },
       take: 5,
-      select: { partNumber: true, manufacturer: true, quantity: true },
+      select: {
+        partNumber: true,
+        manufacturer: { select: { name: true } },
+        quantity: true,
+      },
     })
 
     const items = results
-      .map(
-        (r) => `  <item>
+      .map((r) => {
+        const mfg = r.manufacturer?.name ?? ''
+        return `  <item>
     <part>${escapeXml(r.partNumber)}</part>
-    <mfg>${escapeXml(r.manufacturer)}</mfg>
+    <mfg>${escapeXml(mfg)}</mfg>
     <pb quantity="1">0.00</pb>
     <cur>RUB</cur>
     <stock>${r.quantity}</stock>
     <dlv>2-5 дней</dlv>
     <instock>1</instock>
     <note>Оригинал, под заказ</note>
-  </item>`,
-      )
+  </item>`
+      })
       .join('\n')
 
     reply.header('Content-Type', 'text/xml; charset=utf-8')
-    return reply.send(
-      `<?xml version="1.0" encoding="UTF-8"?>\n<data version="2.0">\n${items}\n</data>`,
-    )
+    return reply.send(`<?xml version="1.0" encoding="UTF-8"?>\n<data version="2.0">\n${items}\n</data>`)
   })
 }
 

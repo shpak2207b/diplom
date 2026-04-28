@@ -1,5 +1,16 @@
 @import './variables.css';
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 140px;
+}
+
+@media (max-width: 768px) {
+  html {
+    scroll-padding-top: 80px;
+  }
+}
+
 *,
 *::before,
 *::after {
@@ -17,16 +28,12 @@ body {
   background-attachment: fixed;
   overflow-x: hidden;
   transition: background-color 0.3s ease, color 0.3s ease, background-image 0.3s ease;
-  opacity: 0;
-  transform: translateY(15px);
-  animation: fadeInPage 0.8s ease-out forwards;
+  animation: fadeInPage 0.5s ease-out forwards;
 }
 
 @keyframes fadeInPage {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 h1, h2, h3, h4, h5, h6 {

@@ -3,3 +3,14 @@ dist/
 .env
 *.env.local
 nginx/certs/
+
+# Документы
+*.docx
+*.pdf
+*.txt
+ПЗ_черновик.md
+usecase.puml
+
+# Тестовые файлы
+test-components.json
+test-components.xlsx

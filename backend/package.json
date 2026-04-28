@@ -22,9 +22,9 @@
     "@types/better-sqlite3": "^7.6.13",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.9.0",
-    "csv-parse": "^5.5.6",
     "fastify": "^4.28.1",
     "fastify-plugin": "^5.1.0",
+    "ioredis": "^5.10.1",
     "nodemailer": "^6.9.16",
     "xlsx": "^0.18.5",
     "zod": "^3.23.8"

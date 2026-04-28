@@ -1,16 +1,27 @@
 import { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
+import { config } from '../../config.js'
 import { sendOrderNotification } from '../../services/email.service.js'
 
+async function verifyCaptcha(token: string): Promise<boolean> {
+  if (!config.TURNSTILE_SECRET) return true // dev mode — skip
+  const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secret: config.TURNSTILE_SECRET, response: token }),
+  })
+  const data = (await res.json()) as { success: boolean }
+  return data.success
+}
+
 const cartItemSchema = z.object({
-  componentId: z.number().int().positive().optional(),
   partNumber: z.string().min(1).max(100),
   manufacturer: z.string().max(100).default(''),
   quantity: z.number().int().positive(),
 })
 
 const orderBodySchema = z.object({
-  token: z.string(),
+  captchaToken: z.string().min(1),
   customerName: z.string().min(2).max(200),
   customerEmail: z.string().email(),
   customerPhone: z.string().max(50).optional(),
@@ -26,23 +37,12 @@ const ordersRoutes: FastifyPluginAsync = async (server) => {
       return reply.code(400).send({ error: 'Некорректные данные', details: parsed.error.flatten() })
     }
 
-    const { token, customerName, customerEmail, customerPhone, companyName, comment, items } =
+    const { captchaToken, customerName, customerEmail, customerPhone, companyName, comment, items } =
       parsed.data
 
-    // Verify OTP token
-    let payload: { email: string; scope: string }
-    try {
-      payload = server.jwt.verify(token) as { email: string; scope: string }
-    } catch {
-      return reply.code(401).send({ error: 'Недействительный токен. Пройдите проверку email заново.' })
-    }
-
-    if (payload.scope !== 'otp-verified') {
-      return reply.code(401).send({ error: 'Недействительный токен' })
-    }
-
-    if (payload.email.toLowerCase() !== customerEmail.toLowerCase()) {
-      return reply.code(400).send({ error: 'Email не совпадает с подтверждённым' })
+    const captchaOk = await verifyCaptcha(captchaToken)
+    if (!captchaOk) {
+      return reply.code(400).send({ error: 'Проверка CAPTCHA не пройдена. Попробуйте ещё раз.' })
     }
 
     const order = await server.prisma.order.create({
@@ -54,7 +54,7 @@ const ordersRoutes: FastifyPluginAsync = async (server) => {
         comment,
         items: {
           create: items.map((i) => ({
-            componentId: i.componentId ?? null,
+            componentId: null,
             partNumber: i.partNumber,
             manufacturer: i.manufacturer,
             quantityRequested: i.quantity,
@@ -64,7 +64,7 @@ const ordersRoutes: FastifyPluginAsync = async (server) => {
       include: { items: true },
     })
 
-    await sendOrderNotification({
+    sendOrderNotification({
       id: order.id,
       customerName: order.customerName,
       customerEmail: order.customerEmail,
@@ -76,7 +76,7 @@ const ordersRoutes: FastifyPluginAsync = async (server) => {
         manufacturer: i.manufacturer,
         quantityRequested: i.quantityRequested,
       })),
-    })
+    }).catch((err) => server.log.error({ err }, 'Failed to send order notification email'))
 
     return { ok: true, orderId: order.id }
   })

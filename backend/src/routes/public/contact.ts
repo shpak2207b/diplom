@@ -18,7 +18,9 @@ const contactRoutes: FastifyPluginAsync = async (server) => {
     const { name, email, message } = parsed.data
 
     await server.prisma.contactMessage.create({ data: { name, email, message } })
-    await sendContactNotification({ name, email, message })
+
+    sendContactNotification({ name, email, message })
+      .catch((err) => server.log.error({ err }, 'Failed to send contact notification email'))
 
     return { ok: true }
   })

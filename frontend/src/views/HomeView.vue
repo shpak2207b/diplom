@@ -32,5 +32,6 @@ main {
   flex-direction: column;
   gap: 0;
   padding-bottom: 40px;
+  overflow-x: hidden;
 }
 </style>

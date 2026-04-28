@@ -1,0 +1,1 @@
+ALTER TABLE contact_messages ADD COLUMN IF NOT EXISTS archived BOOLEAN NOT NULL DEFAULT false;

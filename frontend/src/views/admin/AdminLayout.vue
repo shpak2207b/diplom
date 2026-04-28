@@ -16,9 +16,10 @@ function logout() {
     <aside class="admin-sidebar">
       <div class="admin-logo">Юникс Плюс</div>
       <nav>
-        <RouterLink to="/admin">Дашборд</RouterLink>
+        <RouterLink to="/admin">Сводка</RouterLink>
         <RouterLink to="/admin/orders">Заявки</RouterLink>
         <RouterLink to="/admin/components">Компоненты</RouterLink>
+        <RouterLink to="/admin/messages">Сообщения</RouterLink>
         <RouterLink to="/admin/import">Импорт</RouterLink>
       </nav>
       <button class="logout-btn" @click="logout">Выйти</button>
@@ -33,6 +34,16 @@ function logout() {
 .admin-layout {
   display: flex;
   min-height: 100vh;
+  /* Force light theme regardless of body class */
+  --bg-color: #f0f2f5;
+  --text-color: #1b2b3a;
+  --card-bg: #ffffff;
+  --header-border: #e0e0e0;
+  --menu-hover: rgba(0, 51, 102, 0.1);
+  --icon-color: #1b2b3a;
+  --add-btn-color: #003366;
+  --add-btn-border: #003366;
+  color: #1b2b3a;
 }
 
 .admin-sidebar {
@@ -70,7 +81,7 @@ function logout() {
 }
 
 .admin-sidebar nav a:hover,
-.admin-sidebar nav a.router-link-active {
+.admin-sidebar nav a.router-link-exact-active {
   background: rgba(255, 255, 255, 0.15);
   color: #fff;
 }
@@ -93,7 +104,7 @@ function logout() {
 .admin-content {
   flex: 1;
   padding: 32px;
-  background: var(--bg-color);
+  background: #f0f2f5;
   overflow-y: auto;
 }
 </style>

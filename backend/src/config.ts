@@ -9,6 +9,8 @@ const envSchema = z.object({
   SMTP_PASS: z.string().default(''),
   SMTP_FROM: z.string().default('noreply@unixplus.su'),
   ADMIN_EMAIL: z.string().default('info@unixplus.su'),
+  TURNSTILE_SECRET: z.string().default(''),
+  REDIS_URL: z.string().default('redis://localhost:6379'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   BACKEND_PORT: z.coerce.number().default(3000),
 })

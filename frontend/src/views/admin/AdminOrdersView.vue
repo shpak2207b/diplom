@@ -12,23 +12,30 @@ const statusFilter = ref('')
 const loading = ref(false)
 
 const statusOptions = [
-  { value: '', label: 'Все' },
+  { value: '', label: 'Все активные' },
   { value: 'NEW', label: 'Новые' },
   { value: 'PROCESSED', label: 'В работе' },
   { value: 'COMPLETED', label: 'Завершены' },
+  { value: 'ARCHIVED', label: 'Архив' },
 ]
 
 const statusLabels: Record<string, string> = {
   NEW: 'Новая',
   PROCESSED: 'В работе',
   COMPLETED: 'Завершена',
+  ARCHIVED: 'Архив',
 }
 
 async function fetchOrders() {
   loading.value = true
-  const res = await api.get('/api/admin/orders', {
-    params: { page: page.value, limit: 20, status: statusFilter.value || undefined },
-  })
+  // "Все активные" excludes archived
+  const params: Record<string, unknown> = { page: page.value, limit: 20 }
+  if (statusFilter.value) {
+    params.status = statusFilter.value
+  } else {
+    params.excludeStatus = 'ARCHIVED'
+  }
+  const res = await api.get('/api/admin/orders', { params })
   orders.value = res.data.orders
   total.value = res.data.total
   loading.value = false
@@ -36,21 +43,32 @@ async function fetchOrders() {
 
 watch([page, statusFilter], fetchOrders)
 onMounted(fetchOrders)
+
+async function archiveOrder(id: number, e: Event) {
+  e.stopPropagation()
+  await api.patch(`/api/admin/orders/${id}/status`, { status: 'ARCHIVED' })
+  fetchOrders()
+}
+
+async function deleteOrder(id: number, e: Event) {
+  e.stopPropagation()
+  if (!confirm('Удалить заявку безвозвратно?')) return
+  await api.delete(`/api/admin/orders/${id}`)
+  fetchOrders()
+}
 </script>
 
 <template>
   <div>
     <h1>Заявки</h1>
 
-    <div style="display:flex;gap:10px;margin-bottom:16px">
+    <div class="filter-bar">
       <button
         v-for="opt in statusOptions"
         :key="opt.value"
         :class="['filter-btn', { active: statusFilter === opt.value }]"
         @click="statusFilter = opt.value; page = 1"
-      >
-        {{ opt.label }}
-      </button>
+      >{{ opt.label }}</button>
     </div>
 
     <div v-if="loading">Загрузка...</div>
@@ -63,6 +81,7 @@ onMounted(fetchOrders)
           <th>Email</th>
           <th>Статус</th>
           <th>Позиций</th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -82,14 +101,26 @@ onMounted(fetchOrders)
             </span>
           </td>
           <td>{{ order.items.length }}</td>
+          <td class="row-actions">
+            <button
+              v-if="order.status !== 'ARCHIVED'"
+              class="act-btn archive"
+              @click="archiveOrder(order.id, $event)"
+            >В архив</button>
+            <button
+              class="act-btn del"
+              title="Удалить"
+              @click="deleteOrder(order.id, $event)"
+            >🗑</button>
+          </td>
         </tr>
         <tr v-if="orders.length === 0">
-          <td colspan="6" style="text-align:center;padding:20px">Заявок нет</td>
+          <td colspan="7" style="text-align:center;padding:20px">Заявок нет</td>
         </tr>
       </tbody>
     </table>
 
-    <div v-if="total > 20" style="margin-top:16px;display:flex;gap:10px;align-items:center">
+    <div v-if="total > 20" class="pagination-bar">
       <button :disabled="page === 1" @click="page--">← Назад</button>
       <span>Страница {{ page }}</span>
       <button :disabled="orders.length < 20" @click="page++">Вперёд →</button>
@@ -101,13 +132,21 @@ onMounted(fetchOrders)
 <style scoped>
 h1 { margin-top: 0; }
 
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
 .filter-btn {
-  padding: 8px 16px;
+  padding: 7px 16px;
   border: 1px solid #ccc;
   border-radius: 6px;
   cursor: pointer;
-  background: none;
-  color: var(--text-color);
+  background: #fff;
+  color: #1b2b3a;
+  font-size: 13px;
   transition: background 0.2s;
 }
 
@@ -120,9 +159,10 @@ h1 { margin-top: 0; }
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  background: var(--card-bg);
+  background: #fff;
   border-radius: 10px;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 
 .admin-table th,
@@ -130,11 +170,7 @@ h1 { margin-top: 0; }
   padding: 10px 14px;
   border-bottom: 1px solid #eee;
   text-align: left;
-}
-
-:global(body.dark-theme) .admin-table th,
-:global(body.dark-theme) .admin-table td {
-  border-bottom-color: #333;
+  font-size: 13px;
 }
 
 .admin-table th {
@@ -142,14 +178,8 @@ h1 { margin-top: 0; }
   color: #fff;
 }
 
-.clickable {
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.clickable:hover {
-  background: var(--menu-hover);
-}
+.clickable { cursor: pointer; transition: background 0.15s; }
+.clickable:hover { background: #f5f7fa; }
 
 .status-badge {
   padding: 3px 10px;
@@ -157,19 +187,41 @@ h1 { margin-top: 0; }
   font-size: 12px;
   font-weight: 600;
 }
+.status-badge.new      { background: #fff3cd; color: #856404; }
+.status-badge.processed { background: #cce5ff; color: #004085; }
+.status-badge.completed { background: #d4edda; color: #155724; }
+.status-badge.archived  { background: #e2e3e5; color: #495057; }
 
-.status-badge.new {
-  background: #fff3cd;
-  color: #856404;
+.row-actions { white-space: nowrap; }
+
+.act-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+.act-btn:hover { background: #f0f2f5; }
+.act-btn.archive { color: #6c757d; }
+.act-btn.del { color: #cc0000; }
+
+.pagination-bar {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-.status-badge.processed {
-  background: #cce5ff;
-  color: #004085;
+.pagination-bar button {
+  padding: 7px 14px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #fff;
+  color: #1b2b3a;
 }
 
-.status-badge.completed {
-  background: #d4edda;
-  color: #155724;
-}
+.pagination-bar button:disabled { opacity: 0.4; cursor: not-allowed; }
 </style>

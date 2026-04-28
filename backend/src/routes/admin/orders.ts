@@ -10,7 +10,13 @@ const adminOrdersRoutes: FastifyPluginAsync = async (server) => {
     const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10)))
     const skip = (pageNum - 1) * limitNum
 
-    const where = status ? { status: status as any } : {}
+    const { excludeStatus } = request.query as Record<string, string>
+    let where: Record<string, unknown> = {}
+    if (status) {
+      where = { status: status as any }
+    } else if (excludeStatus) {
+      where = { status: { not: excludeStatus as any } }
+    }
 
     const [orders, total] = await Promise.all([
       server.prisma.order.findMany({
@@ -40,7 +46,7 @@ const adminOrdersRoutes: FastifyPluginAsync = async (server) => {
   // Update order status
   server.patch<{ Params: { id: string } }>('/admin/orders/:id/status', { preHandler: requireAdmin }, async (request, reply) => {
     const id = parseInt(request.params.id, 10)
-    const parsed = z.object({ status: z.enum(['NEW', 'PROCESSED', 'COMPLETED']) }).safeParse(request.body)
+    const parsed = z.object({ status: z.enum(['NEW', 'PROCESSED', 'COMPLETED', 'ARCHIVED']) }).safeParse(request.body)
     if (!parsed.success) return reply.code(400).send({ error: 'Некорректный статус' })
 
     const order = await server.prisma.order.update({
@@ -48,6 +54,17 @@ const adminOrdersRoutes: FastifyPluginAsync = async (server) => {
       data: { status: parsed.data.status },
     })
     return order
+  })
+
+  // Delete order
+  server.delete<{ Params: { id: string } }>('/admin/orders/:id', { preHandler: requireAdmin }, async (request, reply) => {
+    const id = parseInt(request.params.id, 10)
+    try {
+      await server.prisma.order.delete({ where: { id } })
+      return { ok: true }
+    } catch {
+      return reply.code(404).send({ error: 'Заявка не найдена' })
+    }
   })
 }
 

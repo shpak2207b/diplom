@@ -10,27 +10,6 @@ const transporter = nodemailer.createTransport({
     : undefined,
 })
 
-export async function sendOtp(email: string, otp: string): Promise<void> {
-  if (!config.SMTP_HOST) {
-    console.log(`[DEV] OTP for ${email}: ${otp}`)
-    return
-  }
-  await transporter.sendMail({
-    from: config.SMTP_FROM,
-    to: email,
-    subject: 'Код подтверждения — Юникс Плюс',
-    text: `Ваш код подтверждения: ${otp}\n\nКод действителен 10 минут.\n\nЕсли вы не запрашивали этот код, проигнорируйте письмо.`,
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:400px;margin:auto">
-        <h2 style="color:#003366">Юникс Плюс</h2>
-        <p>Ваш код подтверждения:</p>
-        <h1 style="letter-spacing:8px;color:#003366;text-align:center">${otp}</h1>
-        <p style="color:#666;font-size:14px">Код действителен 10 минут.</p>
-      </div>
-    `,
-  })
-}
-
 export async function sendOrderNotification(order: {
   id: number
   customerName: string

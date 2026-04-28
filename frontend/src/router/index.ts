@@ -31,6 +31,10 @@ const router = createRouter({
           component: () => import('../views/admin/AdminComponentsView.vue'),
         },
         {
+          path: 'messages',
+          component: () => import('../views/admin/AdminMessagesView.vue'),
+        },
+        {
           path: 'import',
           component: () => import('../views/admin/AdminImportView.vue'),
         },

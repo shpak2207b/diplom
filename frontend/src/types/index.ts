@@ -25,7 +25,7 @@ export interface Order {
   customerPhone?: string
   companyName?: string
   comment?: string
-  status: 'NEW' | 'PROCESSED' | 'COMPLETED'
+  status: 'NEW' | 'PROCESSED' | 'COMPLETED' | 'ARCHIVED'
   createdAt: string
   items: OrderItem[]
 }
@@ -37,8 +37,18 @@ export interface OrderItem {
   quantityRequested: number
 }
 
+export interface DashboardMessage {
+  id: number
+  name: string
+  email: string
+  message: string
+  createdAt: string
+}
+
 export interface DashboardStats {
   totalOrders: number
   newOrders: number
   totalComponents: number
+  newMessages: number
+  recentMessages: DashboardMessage[]
 }

@@ -1,12 +1,28 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useCartStore } from '../../stores/cart.js'
 import { api } from '../../api/client.js'
+
+declare global {
+  interface Window {
+    turnstile?: {
+      render: (el: HTMLElement, opts: {
+        sitekey: string
+        callback: (token: string) => void
+        'expired-callback'?: () => void
+        'error-callback'?: () => void
+        theme?: 'light' | 'dark' | 'auto'
+      }) => string
+      reset: (widgetId: string) => void
+      remove: (widgetId: string) => void
+    }
+  }
+}
 
 const emit = defineEmits<{ close: []; success: [] }>()
 
 const cart = useCartStore()
-const step = ref(1) // 1: form, 2: otp, 3: success
+const step = ref<'form' | 'success'>('form')
 
 const form = reactive({
   customerName: '',
@@ -16,65 +32,45 @@ const form = reactive({
   comment: '',
 })
 
-const otpCode = ref(['', '', '', '', '', ''])
-const otpRefs = ref<HTMLInputElement[]>([])
-const otpToken = ref('')
+const captchaToken = ref('')
+const captchaContainer = ref<HTMLElement>()
+let widgetId = ''
 
 const loading = ref(false)
 const error = ref('')
 
-// --- Step 1: request OTP ---
-async function requestOtp() {
+onMounted(() => {
+  if (window.turnstile && captchaContainer.value) {
+    widgetId = window.turnstile.render(captchaContainer.value, {
+      sitekey: import.meta.env.VITE_TURNSTILE_SITE_KEY || '1x00000000000000000000AA',
+      theme: 'auto',
+      callback: (token) => { captchaToken.value = token },
+      'expired-callback': () => { captchaToken.value = '' },
+      'error-callback': () => { captchaToken.value = '' },
+    })
+  }
+})
+
+onUnmounted(() => {
+  if (window.turnstile && widgetId) {
+    window.turnstile.remove(widgetId)
+  }
+})
+
+async function submit() {
   if (!form.customerName.trim() || !form.customerEmail.trim()) {
     error.value = 'Укажите имя и email'
+    return
+  }
+  if (!captchaToken.value) {
+    error.value = 'Пройдите проверку CAPTCHA'
     return
   }
   error.value = ''
   loading.value = true
   try {
-    await api.post('/api/otp/request', { email: form.customerEmail })
-    step.value = 2
-  } catch (e: any) {
-    error.value = e?.response?.data?.error ?? 'Ошибка. Попробуйте ещё раз.'
-  } finally {
-    loading.value = false
-  }
-}
-
-// --- Step 2: handle OTP input ---
-function onOtpInput(idx: number, e: Event) {
-  const input = e.target as HTMLInputElement
-  const val = input.value.replace(/\D/g, '')
-  otpCode.value[idx] = val.slice(-1)
-  if (val && idx < 5) {
-    otpRefs.value[idx + 1]?.focus()
-  }
-  if (otpCode.value.every((c) => c !== '')) {
-    verifyAndSubmit()
-  }
-}
-
-function onOtpKeydown(idx: number, e: KeyboardEvent) {
-  if (e.key === 'Backspace' && !otpCode.value[idx] && idx > 0) {
-    otpRefs.value[idx - 1]?.focus()
-  }
-}
-
-async function verifyAndSubmit() {
-  error.value = ''
-  loading.value = true
-  const code = otpCode.value.join('')
-  try {
-    // Verify OTP and get token
-    const verifyRes = await api.post('/api/otp/verify', {
-      email: form.customerEmail,
-      code,
-    })
-    otpToken.value = verifyRes.data.token
-
-    // Submit order
     await api.post('/api/orders', {
-      token: otpToken.value,
+      captchaToken: captchaToken.value,
       customerName: form.customerName,
       customerEmail: form.customerEmail,
       customerPhone: form.customerPhone || undefined,
@@ -87,12 +83,13 @@ async function verifyAndSubmit() {
         quantity: i.quantity,
       })),
     })
-
-    step.value = 3
+    step.value = 'success'
   } catch (e: any) {
-    error.value = e?.response?.data?.error ?? 'Ошибка. Проверьте код.'
-    otpCode.value = ['', '', '', '', '', '']
-    otpRefs.value[0]?.focus()
+    error.value = e?.response?.data?.error ?? 'Ошибка. Попробуйте ещё раз.'
+    if (window.turnstile && widgetId) {
+      window.turnstile.reset(widgetId)
+      captchaToken.value = ''
+    }
   } finally {
     loading.value = false
   }
@@ -108,8 +105,8 @@ function onSuccess() {
     <div class="modal-box">
       <button class="modal-box-close" @click="emit('close')">&times;</button>
 
-      <!-- Step 1: Form -->
-      <template v-if="step === 1">
+      <!-- Form -->
+      <template v-if="step === 'form'">
         <h2>Оформить заявку</h2>
         <p style="font-size:13px;opacity:0.7;margin-top:-10px">
           Позиций: {{ cart.items.length }}
@@ -136,44 +133,17 @@ function onSuccess() {
           <textarea v-model="form.comment" class="form-input" rows="3" placeholder="Сроки, особые требования..." style="resize:vertical" />
         </div>
 
+        <div ref="captchaContainer" style="margin: 12px 0" />
+
         <p v-if="error" class="error-msg">{{ error }}</p>
 
-        <button class="btn-primary" :disabled="loading" @click="requestOtp">
-          {{ loading ? 'Отправка кода...' : 'Получить код на email' }}
+        <button class="btn-primary" :disabled="loading || !captchaToken" @click="submit">
+          {{ loading ? 'Отправка...' : 'Отправить заявку' }}
         </button>
       </template>
 
-      <!-- Step 2: OTP -->
-      <template v-else-if="step === 2">
-        <h2>Код подтверждения</h2>
-        <p style="font-size:14px">
-          Введите 6-значный код, отправленный на <strong>{{ form.customerEmail }}</strong>
-        </p>
-
-        <div class="otp-inputs">
-          <input
-            v-for="(_, idx) in otpCode"
-            :key="idx"
-            :ref="(el) => { if (el) otpRefs[idx] = el as HTMLInputElement }"
-            :value="otpCode[idx]"
-            type="text"
-            inputmode="numeric"
-            maxlength="1"
-            @input="onOtpInput(idx, $event)"
-            @keydown="onOtpKeydown(idx, $event)"
-          />
-        </div>
-
-        <p v-if="error" class="error-msg" style="text-align:center">{{ error }}</p>
-        <p v-if="loading" style="text-align:center;font-size:14px">Проверка...</p>
-
-        <button class="btn-secondary" style="width:100%;margin-top:10px" @click="step = 1">
-          ← Назад
-        </button>
-      </template>
-
-      <!-- Step 3: Success -->
-      <template v-else-if="step === 3">
+      <!-- Success -->
+      <template v-else>
         <div style="text-align:center;padding:20px 0">
           <div style="font-size:60px">✅</div>
           <h2>Заявка отправлена!</h2>

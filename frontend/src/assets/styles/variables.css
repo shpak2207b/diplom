@@ -1,18 +1,26 @@
 :root {
   --unix-blue: #003366;
-  --bg-color: #ffffff;
+  --bg-color: #f0f2f5;
   --text-color: #1b2b3a;
   --card-bg: #ffffff;
-  --menu-hover: rgba(0, 51, 102, 0.2);
+  --header-bg: rgba(255, 255, 255, 0.92);
+  --header-border: #e0e0e0;
+  --menu-hover: rgba(0, 51, 102, 0.1);
   --background-image: url('/light-bg.png');
   --icon-color: #1b2b3a;
+  --add-btn-color: var(--unix-blue);
+  --add-btn-border: var(--unix-blue);
 }
 
 body.dark-theme {
   --bg-color: #121212;
   --text-color: #eaeaea;
   --card-bg: #1c1c1c;
+  --header-bg: rgba(18, 18, 18, 0.95);
+  --header-border: #2a2a2a;
   --menu-hover: rgba(61, 124, 207, 0.25);
   --background-image: url('/dark-bg.png');
   --icon-color: #eaeaea;
+  --add-btn-color: #90b8e8;
+  --add-btn-border: #90b8e8;
 }
