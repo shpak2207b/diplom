@@ -3,7 +3,17 @@ import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 
 const authRoutes: FastifyPluginAsync = async (server) => {
-  server.post('/admin/login', async (request, reply) => {
+  server.post('/admin/login', {
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: '1 minute',
+        errorResponseBuilder: () => ({
+          error: 'Слишком много попыток входа. Подождите 1 минуту.',
+        }),
+      },
+    },
+  }, async (request, reply) => {
     const parsed = z
       .object({ username: z.string(), password: z.string() })
       .safeParse(request.body)
